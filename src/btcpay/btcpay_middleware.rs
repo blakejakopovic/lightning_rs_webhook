@@ -86,15 +86,19 @@ where
             debug!("Header: {BTCPAY_SIG_HEADER}: {btcpay_sig_header}");
 
             // Borrow request body bytes
-            let body_bytes = req.extract::<web::Bytes>().await.unwrap();
-                                //.map_err(|_| actix_web::error::ErrorBadRequest("Bad body"))?;
+            let body_bytes = match req.extract::<web::Bytes>().await {
+                Ok(body_bytes) => body_bytes,
+                Err(_) => return Ok(return_unauthorized(req)),
+            };
 
             // Re-insert body bytes back into request
             req.set_payload(bytes_to_payload(body_bytes.clone()));
 
             // Convery body from bytes to utf8 string
-            let body_str = std::str::from_utf8(&body_bytes).unwrap();
-                                //.map_err(|_| actix_web::error::ErrorBadRequest("Bad body"))?;
+            let body_str = match std::str::from_utf8(&body_bytes) {
+                Ok(body_str) => body_str,
+                Err(_) => return Ok(return_unauthorized(req)),
+            };
 
             debug!("Body: {body_str}");
 
