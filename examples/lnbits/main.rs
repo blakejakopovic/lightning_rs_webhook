@@ -67,7 +67,7 @@ pub struct AppData {
 #[actix_web::main]
 async fn main() -> Result<()> {
 
-    env_logger::init();
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     dotenv().ok();
 
@@ -123,6 +123,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_lnbits_webhook_post_valid() {
+        // Note: Dummy data/
         env::set_var("POSTGRES_ADDRESS", "postgresql://postgres:postgres@localhost:5433/postgres");
 
         let pg_address: String = std::env::var("POSTGRES_ADDRESS").expect("POSTGRES_ADDRESS must be set.");
@@ -164,6 +165,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_lnbits_webhook_post_invalid() {
+        // Note: Dummy data
         env::set_var("POSTGRES_ADDRESS", "postgresql://postgres:postgres@localhost:5433/postgres");
 
         let pg_address: String = std::env::var("POSTGRES_ADDRESS").expect("POSTGRES_ADDRESS must be set.");

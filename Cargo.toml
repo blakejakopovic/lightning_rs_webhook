@@ -20,3 +20,5 @@ serde = { version = "1.0.160", features = ["derive"] }
 serde_json = "1.0.96"
 tokio-postgres = "0.7.8"
 url = "2.3.1"
+btcpay-client = { git = "https://github.com/AE9999/btcpay-rust", rev = "842f235b57a3a28e787213680195a5aa973dc4cf" }
+reqwest = "0.11.17"

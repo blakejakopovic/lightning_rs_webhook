@@ -1,12 +1,15 @@
+#![allow(unused_imports)]
 #[macro_use]
 extern crate log;
 use actix_web::{App, post, HttpServer, middleware::Logger, web, HttpResponse, Responder};
 use anyhow::Result;
 use deadpool_postgres::{Pool as PGPool};
 use dotenv::dotenv;
+use lightning_rs_webhook::btcpay::{btcpay_middleware, get_invoice_data, WebhookPayload};
 use lightning_rs_webhook::db::pg_pool_from_url;
-use lightning_rs_webhook::btcpay::{btcpay_middleware, btcpay_models::WebhookPayload};
+use lightning_rs_webhook::error::ServiceError;
 use lightning_rs_webhook::routes;
+use serde_json::Value;
 
 #[allow(unused_variables)]
 async fn webhook_handler(pg_pool: &PGPool, payload: WebhookPayload) -> Result<()> {
@@ -17,21 +20,117 @@ async fn webhook_handler(pg_pool: &PGPool, payload: WebhookPayload) -> Result<()
         WebhookPayload::InvoiceSettled(event) => {
             debug!("InvoiceSettled Event: {event:?}");
 
+            // Note: The example below is expecting that the invoice was created with posData
+            //       that includes a Nostr pubkey and content_id. Your needs may vary.
+            //
+            //        There are two alternatives for invoice processing and database updating
+            //        as examples. You only need to pick one of each, or write your own.
+
+            // Event Processing Approach 1. - using webhook data
+            // let pos_data = event
+            //     .metadata.ok_or(ServiceError::InternalError)?
+            //     .pos_data.ok_or(ServiceError::InternalError)?;
+
+            // let pubkey = pos_data
+            //     .get("pubkey").ok_or(ServiceError::BadClientData)?
+            //     .as_str().ok_or(ServiceError::BadClientData)?
+            //     .to_string();
+
+            // let content_id = pos_data
+            //     .get("content_id").ok_or(ServiceError::BadClientData)?
+            //     .as_str().ok_or(ServiceError::BadClientData)?
+            //     .to_string();
+
+            // Event Processing Approach 2. - using REST API to fetch full invoice data record
+            //
+            // Ensure store_id and invoice_id are populated
+            // let store_id = event.store_id.ok_or(ServiceError::BadClientData)?;
+            // let invoice_id = event.invoice_id.ok_or(ServiceError::BadClientData)?;
+
+            // // Fetch the invoice via the API
+            // let invoice_data = get_invoice_data(&store_id, &invoice_id)
+            //     .await
+            //     .map_err(|_| ServiceError::InternalError)?;
+
+            // debug!("{invoice_data:?}");
+
+            // // Validate Invoice response
+            // let invoice_id = invoice_data.id.ok_or(ServiceError::InternalError)?;
+
+            // let pos_data_json = invoice_data
+            //     .metadata
+            //     .ok_or(ServiceError::InternalError)?
+            //     .pos_data
+            //     .ok_or(ServiceError::InternalError)?;
+
+            // let pos_data: Value = serde_json::from_str(&pos_data_json)
+            //     .map_err(|_| ServiceError::InternalError)?;
+
+            // // Extract what we need to update the database
+            // // Note: Since we are populating the posData values in BTCPay server, we can skip validation here - unless
+            // //       you are risk adverse.
+            // let pubkey = pos_data.get("pubkey").ok_or(ServiceError::InternalError)?.to_string();
+            // let content_id = pos_data.get("content_id").ok_or(ServiceError::InternalError)?.to_string();
+
+
+            // Database Approach 1. - single query
+            // This query will insert the pubkey into the identities table if not found, before
+            // inserting the payment record. Noting, if the content_id is not found, it's an NOOP returning 200
             // let pg_conn = pg_pool.get().await?;
 
-            // let invoice_id = event.invoice_id;
-
-            // // TODO: Lookup the invoice_id to lookup the invoice pubkey and content_id metadata
-            // let pubkey = "";
-            // let content_id = "";
-
-            // pg_conn.execute("
-            //     UPDATE access_table
-            //     SET (pubkey, content_id, paid)
-            //     VALUES ($1, $2, true)
-            //     ON CONFLICT (pubkey, content_id)
-            //     DO NOTHING;
+            // let result = pg_conn.execute("
+            //     WITH selected_identity AS (
+            //       SELECT id
+            //       FROM identities
+            //       WHERE pubkey = $1
+            //       LIMIT 1
+            //     ), inserted_identity AS (
+            //       INSERT INTO identities (pubkey)
+            //       SELECT $1
+            //       WHERE NOT EXISTS (SELECT 1 FROM selected_identity)
+            //       RETURNING id
+            //     )
+            //     INSERT INTO payments (identity_id, content_id)
+            //     SELECT COALESCE(selected_identity.id, inserted_identity.id), content.id
+            //     FROM selected_identity
+            //     FULL JOIN inserted_identity ON true
+            //     JOIN content ON content.content_id = $2
+            //     ON CONFLICT (identity_id, content_id) DO NOTHING;
             // ", &[&pubkey, &content_id]).await?;
+
+            // Database Approach 2. - using transactions
+            // let mut pg_conn = pg_pool.get().await?;
+            // let pg_trans = pg_conn.transaction().await?;
+
+            // // Ensure the identity pubkey record exists
+            // let db_identity = pg_trans.query_one("
+            //     WITH new_i AS(
+            //         INSERT INTO identities (pubkey)
+            //                VALUES ($1)
+            //         ON CONFLICT DO NOTHING
+            //         RETURNING id
+            //     )
+            //     SELECT id FROM new_i
+            //     UNION
+            //     SELECT id FROM identities WHERE pubkey=$1",
+            //     &[&pubkey]).await?;
+
+            // let identity_id: i32 = db_identity.get(0);
+
+            // // Insert or ignore if existing payment row exists
+            // pg_trans.execute("
+            //     INSERT INTO payments (
+            //       identity_id,
+            //       content_id
+            //     )
+            //     VALUES (
+            //       $1,
+            //       (select id from content where content_id = $2)
+            //     )
+            //     ON CONFLICT (identity_id, content_id) DO NOTHING;
+            // ", &[&identity_id, &content_id]).await?;
+
+            // pg_trans.commit().await?;
 
             Ok(())
         },
@@ -138,6 +237,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_btcpay_webhook_post_valid() {
+        // Note: Dummy data
         env::set_var("BTCPAY_WEBHOOK_SECRET", "Y6Tio3rXRT4dGqpk43GvBPK9fHQ");
         env::set_var("POSTGRES_ADDRESS", "postgresql://postgres:postgres@localhost:5433/postgres");
 
@@ -183,6 +283,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_btcpay_webhook_post_missing_sig_header() {
+        // Note: Dummy data
         env::set_var("BTCPAY_WEBHOOK_SECRET", "Y6Tio3rXRT4dGqpk43GvBPK9fHQ");
         env::set_var("POSTGRES_ADDRESS", "postgresql://postgres:postgres@localhost:5433/postgres");
 
@@ -228,6 +329,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_btcpay_webhook_post_invalid_sig_header() {
+        // Note: Dummy data
         env::set_var("BTCPAY_WEBHOOK_SECRET", "Y6Tio3rXRT4dGqpk43GvBPK9fHQ");
         env::set_var("POSTGRES_ADDRESS", "postgresql://postgres:postgres@localhost:5433/postgres");
 
