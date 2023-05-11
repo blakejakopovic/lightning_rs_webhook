@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 #[macro_use]
 extern crate log;
 use actix_web::{App, post, HttpServer, middleware::Logger, web, HttpResponse, Responder};
@@ -5,6 +6,7 @@ use anyhow::Result;
 use deadpool_postgres::{Pool as PGPool};
 use dotenv::dotenv;
 use lightning_rs_webhook::db::pg_pool_from_url;
+use lightning_rs_webhook::error::ServiceError;
 use lightning_rs_webhook::lnbits::lnbits_models::WebhookPayload;
 use lightning_rs_webhook::routes;
 
@@ -16,14 +18,20 @@ async fn webhook_handler(pg_pool: &PGPool, payload: WebhookPayload) -> Result<()
         WebhookPayload::Payment(payment) => {
             debug!("PaymentEvent: {payment:?}");
 
-            // let pg_conn = pg_pool.get().await?;
-
-            // TODO: This is only an example with poor error checking!
             // NOTE: It doesn't appear that LNbits has any HMAC check regarding webhook data. You may want to perform
             //       extra validation.
 
-            // let pubkey = payment.extra.get("pubkey").expect("pubkey missing").to_string();
-            // let content_id = payment.extra.get("content_id").expect("content_id missing").to_string();
+            // let pubkey = payment.extra
+            //     .get("pubkey").ok_or(ServiceError::BadClientData)?
+            //     .as_str().ok_or(ServiceError::BadClientData)?
+            //     .to_string();
+
+            // let content_id = payment.extra
+            //     .get("content_id").ok_or(ServiceError::BadClientData)?
+            //     .as_str().ok_or(ServiceError::BadClientData)?
+            //     .to_string();
+
+            // let pg_conn = pg_pool.get().await?;
 
             // pg_conn.execute("
             //     UPDATE access_table
