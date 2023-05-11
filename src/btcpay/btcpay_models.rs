@@ -40,25 +40,6 @@ pub struct WebhookInvoiceSettledEvent {
     pub over_paid: Option<bool>,
 }
 
-impl WebhookInvoiceSettledEvent {
-    /// Callback sent if the `type` is `InvoiceSettled`
-    pub fn new() -> WebhookInvoiceSettledEvent {
-        WebhookInvoiceSettledEvent {
-            delivery_id: None,
-            webhook_id: None,
-            original_delivery_id: None,
-            is_redelivery: None,
-            _type: None,
-            timestamp: None,
-            store_id: None,
-            invoice_id: None,
-            metadata: None,
-            manually_marked: None,
-            over_paid: None,
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct InvoiceMetadata {
     /// You can use this property to store the ID of an external system. We allow you to search in the invoice list based on this ID.
@@ -97,26 +78,33 @@ pub struct InvoiceMetadata {
     pub tax_included: Option<f32>,
 }
 
-impl InvoiceMetadata {
-    /// Additional information around the invoice that can be supplied. The mentioned properties are all optional and you can introduce any json format you wish.
-    pub fn new() -> InvoiceMetadata {
-        InvoiceMetadata {
-            order_id: None,
-            order_url: None,
-            pos_data: None,
-            buyer_name: None,
-            buyer_email: None,
-            buyer_country: None,
-            buyer_zip: None,
-            buyer_state: None,
-            buyer_city: None,
-            buyer_address1: None,
-            buyer_address2: None,
-            buyer_phone: None,
-            item_desc: None,
-            item_code: None,
-            physical: None,
-            tax_included: None,
-        }
-    }
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+pub struct WebhookInvoiceCreatedEvent {
+    /// The delivery id of the webhook
+    #[serde(rename = "deliveryId", skip_serializing_if = "Option::is_none")]
+    pub delivery_id: Option<String>,
+    /// The id of the webhook
+    #[serde(rename = "webhookId", skip_serializing_if = "Option::is_none")]
+    pub webhook_id: Option<String>,
+    /// If this delivery is a redelivery, the is the delivery id of the original delivery.
+    #[serde(rename = "originalDeliveryId", skip_serializing_if = "Option::is_none")]
+    pub original_delivery_id: Option<String>,
+    /// True if this delivery is a redelivery
+    #[serde(rename = "isRedelivery", skip_serializing_if = "Option::is_none")]
+    pub is_redelivery: Option<bool>,
+    /// The type of this event, which is always "InvoiceCreated" for this struct
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub _type: Option<String>,
+    /// The timestamp when this delivery has been created
+    #[serde(rename = "timestamp", skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<i64>,
+    /// The store id of the invoice's event
+    #[serde(rename = "storeId", skip_serializing_if = "Option::is_none")]
+    pub store_id: Option<String>,
+    /// The invoice id of the invoice's event
+    #[serde(rename = "invoiceId", skip_serializing_if = "Option::is_none")]
+    pub invoice_id: Option<String>,
+    /// The invoice metadata
+    #[serde(rename = "metadata", skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Box<InvoiceMetadata>>,
 }

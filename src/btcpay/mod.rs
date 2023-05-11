@@ -7,9 +7,19 @@ use serde::{Serialize, Deserialize};
 pub mod btcpay_middleware;
 pub mod btcpay_models;
 
-// Use our custom type here to support the metadata key and fix physical being a bool, instead of a string
-pub use btcpay_models::WebhookInvoiceSettledEvent;
-pub use btcpay_client::models::{WebhookInvoicePaymentSettledEvent,WebhookInvoiceReceivedPaymentEvent, InvoiceData};
+// Use our custom types here to support the metadata key and fix physical being a bool, instead of a string
+pub use btcpay_models::{
+  WebhookInvoiceSettledEvent,
+  WebhookInvoiceCreatedEvent
+};
+pub use btcpay_client::models::{
+  WebhookInvoicePaymentSettledEvent,
+  WebhookInvoiceReceivedPaymentEvent,
+  WebhookInvoiceExpiredEvent,
+  WebhookInvoiceInvalidEvent,
+  WebhookInvoiceProcessingEvent,
+  InvoiceData
+};
 
 
 lazy_static! {
@@ -23,6 +33,10 @@ pub enum WebhookPayload {
     InvoiceSettled(WebhookInvoiceSettledEvent),
     InvoicePaymentSettled(WebhookInvoicePaymentSettledEvent),
     InvoiceReceivedPayment(WebhookInvoiceReceivedPaymentEvent),
+    InvoiceExpired(WebhookInvoiceExpiredEvent),
+    InvoiceInvalid(WebhookInvoiceInvalidEvent),
+    InvoiceProcessing(WebhookInvoiceProcessingEvent),
+    InvoiceCreated(WebhookInvoiceCreatedEvent), // Note: Not yet part of btcpay-client crate
     Unsupported
 }
 

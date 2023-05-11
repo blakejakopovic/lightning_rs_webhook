@@ -15,8 +15,9 @@ use serde_json::Value;
 async fn webhook_handler(pg_pool: &PGPool, payload: WebhookPayload) -> Result<()> {
     match payload {
 
-        // Triggers when an invoice is considered settled and the merchant can proceed with the order's delivery. The
-        // invoice now has enough confirmations on the blockchain (if paid on-chain) according to your store's configuration.
+        // Triggers when an invoice is considered settled and the merchant can proceed with the order's
+        // delivery. The invoice now has enough confirmations on the blockchain (if paid on-chain) according
+        // to your store's configuration.
         WebhookPayload::InvoiceSettled(event) => {
             debug!("InvoiceSettled Event: {event:?}");
 
@@ -67,8 +68,8 @@ async fn webhook_handler(pg_pool: &PGPool, payload: WebhookPayload) -> Result<()
             //     .map_err(|_| ServiceError::InternalError)?;
 
             // // Extract what we need to update the database
-            // // Note: Since we are populating the posData values in BTCPay server, we can skip validation here - unless
-            // //       you are risk adverse.
+            // // Note: Since we are populating the posData values in BTCPay server, we can skip validation
+            // //       here - unless you are risk adverse.
             // let pubkey = pos_data.get("pubkey").ok_or(ServiceError::InternalError)?.to_string();
             // let content_id = pos_data.get("content_id").ok_or(ServiceError::InternalError)?.to_string();
 
@@ -147,6 +148,32 @@ async fn webhook_handler(pg_pool: &PGPool, payload: WebhookPayload) -> Result<()
             Ok(())
         },
 
+        // An invoice expired
+        WebhookPayload::InvoiceExpired(event) => {
+            debug!("InvoiceExpired Event: {event:?}");
+            Ok(())
+        },
+
+        // An invoice became invalid
+        WebhookPayload::InvoiceInvalid(event) => {
+            debug!("InvoiceInvalid Event: {event:?}");
+            Ok(())
+        },
+
+        // Triggers when an invoice is fully paid, but doesn't have the required amount of confirmations
+        // on the blockchain yet according to your store's settings.
+        WebhookPayload::InvoiceProcessing(event) => {
+            debug!("InvoiceProcessing Event: {event:?}");
+            Ok(())
+        },
+
+        // A new invoice has been created
+        WebhookPayload::InvoiceCreated(event) => {
+            debug!("InvoiceCreated Event: {event:?}");
+            Ok(())
+        },
+
+        // Any unhandled webhook events - return ok, as we don't have any logic for them yet
         WebhookPayload::Unsupported => {
             debug!("Unsupported Event");
             Ok(())
